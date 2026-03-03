@@ -26,7 +26,7 @@ Use `openclaw cron add` or edit the crons section in `~/.openclaw/openclaw.json`
     "kind": "agentTurn",
     "thinking": "high",
     "timeoutSeconds": 1200,
-    "model": "sonnet",
+    "model": "opus",
     "message": "Read ~/hypergrowth-skills/meeting-prep/SKILL.md and run daily meeting prep for today."
   },
   "delivery": {
@@ -58,7 +58,7 @@ Use `openclaw cron add` or edit the crons section in `~/.openclaw/openclaw.json`
     "kind": "agentTurn",
     "thinking": "high",
     "timeoutSeconds": 1200,
-    "model": "sonnet",
+    "model": "opus",
     "message": "Read ~/hypergrowth-skills/action-items-todoist/SKILL.md and extract action items from today's meetings into Todoist. Draft follow-up emails as needed."
   },
   "delivery": {
@@ -88,7 +88,7 @@ Use `openclaw cron add` or edit the crons section in `~/.openclaw/openclaw.json`
     "kind": "agentTurn",
     "thinking": "high",
     "timeoutSeconds": 600,
-    "model": "sonnet",
+    "model": "opus",
     "message": "Read ~/hypergrowth-skills/executive-digest/SKILL.md and generate the daily executive digest."
   },
   "delivery": {
@@ -116,7 +116,7 @@ Use `openclaw cron add` or edit the crons section in `~/.openclaw/openclaw.json`
   "payload": {
     "kind": "agentTurn",
     "timeoutSeconds": 60,
-    "model": "sonnet",
+    "model": "opus",
     "message": "Refresh the Granola MCP OAuth token. Read ~/.mcporter/credentials.json, extract refresh_token, POST to https://mcp-auth.granola.ai/oauth2/token with grant_type=refresh_token and client_id=client_01KHKZRS1RYY7SB7Z0A8Z13BE1, save new access_token and refresh_token back to credentials.json. Output NO_REPLY on success, alert on failure."
   },
   "delivery": {
@@ -130,6 +130,6 @@ Use `openclaw cron add` or edit the crons section in `~/.openclaw/openclaw.json`
 ## Notes
 
 - **`sessionTarget: isolated`** is mandatory for all crons — shared sessions remember previous runs and may skip work thinking it's already done.
-- **`model: sonnet`** is the right balance for these tasks (cheaper than opus, good enough).
+- **`model: opus`** for meeting-prep, action-items, and digest — these require deep reasoning and extraction quality. Use `sonnet` only for lightweight tasks (token refresh, health checks).
 - **`thinking: high`** improves extraction and classification quality.
 - All skill paths use `~/hypergrowth-skills/` absolute references so they work correctly from isolated cron sessions regardless of working directory.
