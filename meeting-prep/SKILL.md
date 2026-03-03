@@ -1,0 +1,195 @@
+---
+name: meeting-prep
+description: Prepare daily meeting briefs with email context, Granola history, LinkedIn research, and company news. Use when running the daily meeting prep cron or when user asks to prepare for today's meetings.
+---
+# Daily Meeting Prep
+
+## Config — read before starting
+Read `../config/user.json` (resolves to `~/hypergrowth-skills/config/user.json`).
+Extract and use throughout:
+- `name`, `full_name` — user's name
+- `primary_email`, `work_email` — Gmail accounts to check
+- `whatsapp` — WhatsApp number for delivery
+- `timezone` — IANA timezone (e.g. America/Argentina/Buenos_Aires)
+- `slack_username` — Slack DM target
+- `workspace` — absolute path to OpenClaw workspace (e.g. /home/user/.openclaw/workspace)
+
+Do not proceed until you have these values.
+
+## Scope
+- Timezone: {user.timezone}
+- Calendars: primary of {user.primary_email} AND {user.work_email}
+- Today's meetings only
+- Only EXTERNAL meetings (attendees NOT from your email domains)
+
+## For each external meeting
+
+### 1. Event basics
+Title, local time ({user.timezone}), attendees.
+
+### 2. Email context (90-day lookback, with historical fallback)
+Search Gmail both accounts for exchanges with attendees. For EACH attendee, search using these strategies in order:
+1. **Email address** (primary — from calendar invite): `from:<email> OR to:<email>`
+2. **Full name**: `"firstname lastname"`
+3. **First name + "intro"**: `"intro firstname"` (catches informal intro subjects)
+4. **First name + company**: `"firstname companyname"`
+
+The attendee's email from the calendar invite is the most reliable identifier — always start there.
+
+**Intro discovery** (after general email search):
+5. Search for intro emails involving the attendee: `subject:intro <email>`, `subject:intro <firstname>`, `subject:introduction <email>`
+6. Also check threads where a third party CC'd/introduced the attendee
+
+**Recent email context** (after intro discovery):
+7. Pull the most recent email threads with this attendee (by email address) to surface any recent updates, asks, or context leading into today's call
+
+**Historical fallback** (if no results from 90-day search):
+8. Run a broader search with NO date filter: `from:<email> OR to:<email>` — this catches long-standing relationships where the last email was months/years ago. If older threads exist, this is NOT a first call — note the relationship history.
+
+- First call vs follow-up? Base this on ALL email history found (including historical), not just 90-day window
+- **If first call: MUST include "who introduced + when" (date) if found in email; if not found, explicitly say "No intro trail found in email"**
+- If follow-up: extract updates since last call
+- **If email contains a concrete commercial trigger** (pricing, deliverables, scope, budget, urgency, timeline, decision-maker request), include it explicitly in the brief
+
+### 3. Granola context
+```bash
+mcporter call granola.query_granola_meetings query="meetings with [attendee name or company]"
+```
+- **Recent (< 3 weeks):** Provide a richer summary (not one-liner): decisions made, key tensions, explicit action items, owners, and unresolved questions
+- **Older (3+ weeks):** Broader context — relationship history, past decisions, recurring themes
+- **No attendee match but company match exists:** Use company-level context and label it clearly as company-level
+- **No results / first meeting:** Note that, provide email context instead
+- Preserve citation links `[[N]](url)`
+- Include a short explicit line: **"Why this meeting now"** based on prior action items or current email trigger
+
+### 4. LinkedIn research
+- Search: `"[attendee name] [company] LinkedIn"`
+- Extract: current role, background, recent posts/activity
+
+### 5. Company research
+- Search: `"[company] recent news"`
+- Search: `"[company] funding crunchbase"` (if startup/VC relevant)
+- Extract: company stage, announcements, what they do
+
+## Research rules
+Read `style/MEETING_PREP_RULES.md` for additional research steps.
+
+## Attendee research rules
+- Research ALL attendees on the invite, even if they declined
+- Declined attendees: still search email history + LinkedIn, note "(declined)" next to their name
+- Multiple attendees: search email history with EACH person individually
+
+## Granola rules
+- Query Granola for EVERY external meeting attendee and company
+- If Granola returns results: include summary, action items, open loops, citation links
+- If Granola returns NO results: explicitly state "No previous meetings found in Granola"
+- Never silently skip Granola lookups
+- **Exact name matching**: When attributing Granola results to an attendee, verify BOTH first AND last name match exactly. Different people can share a first name — never assume a match based on first name alone.
+
+## Output format
+Send via WhatsApp ({user.whatsapp}) AND Slack (DM to {user.slack_username}). **One message per meeting, chronological order, is mandatory.** Send to both channels.
+
+**Never collapse into a single summary block.** The user expects one standalone message per meeting.
+
+Start with a short intro: "📋 *MEETING PREP — <day>* — <N> external meetings"
+
+Then one message per meeting in this format — use bold subsections and blank lines between each section for readability:
+```
+*<number>. <Name/Company> — <local time>*
+
+*Who:* <Role>, <Company> (<location>). <What the company does, 1 sentence>. <Funding/stage if relevant>.
+
+*Context:* <First call vs follow-up>. <If first call: who intro'd + when (date); if unavailable: "No intro trail found in email">.
+
+*Email history:* <Key email context — include important commercial/decision triggers when present (pricing, scope, deliverables, urgency, budget, decision-maker request)>.
+
+*Granola:* <Richer recap: key decisions, action items, owners, unresolved questions, and why a follow-up was needed. If no attendee notes, use company-level notes and label it. Or "No previous meetings found in Granola">.
+
+*Why this meeting now:* <One sentence grounded in prior action items and/or current email trigger>.
+
+*Focus areas:* <ONLY items derived from prior action items and current email trigger — not generic strategy prompts>.
+
+*Links:* <LinkedIn, company site, Crunchbase>
+```
+
+Each section on its own paragraph (blank line before each bold label). Keep it concise but well-structured — readability over density.
+
+If a meeting already happened, prefix with ✅ and keep brief.
+If there's a schedule conflict, flag with ⚠️.
+
+## Save full brief
+Save the full detailed brief to `state/meeting-prep-YYYY-MM-DD.md` and also send it as a file attachment via WhatsApp.
+
+## Pre-meeting reminders
+After generating all briefs, create a one-shot cron job for EACH meeting that fires 5 minutes before start time. The cron job should:
+1. Read `state/meeting-prep-YYYY-MM-DD.md`
+2. Find the section for that specific meeting
+3. Resend the FULL formatted brief for that meeting (same format as the original WhatsApp message — bold subsection labels, blank lines, links, etc.)
+4. Prefix with "⏰ *5 min reminder*\n\n" then the full brief
+
+**Hard formatting contract (no exceptions):**
+- The reminder body must be copied verbatim from `state/meeting-prep-YYYY-MM-DD.md` for that meeting block.
+- Do NOT rewrite, summarize, translate, normalize, or reformat any part of that block.
+- Keep language exactly as generated in the source brief.
+- Only allowed change is adding the `⏰ *5 min reminder*` prefix.
+
+Use `openclaw cron add` with `--at` set to 5 min before meeting time and `--delete-after-run`. Deliver to WhatsApp ({user.whatsapp}).
+
+**Hard requirement:** after creating jobs, run `openclaw cron list` and verify the expected number of `pre-meeting-` jobs for today. If count is lower than expected, immediately retry creation and report failure explicitly.
+
+## Post-meeting action items + drafts
+After generating all briefs, ALSO create a one-shot cron job for EACH meeting that fires 10 minutes after the meeting END time. The cron job should:
+1. Read `~/hypergrowth-skills/action-items-todoist/SKILL.md`
+2. Query Granola for ONLY the meeting that just ended (by title, attendee, or time)
+3. Extract action items → create Todoist tasks
+4. Draft any follow-up emails per `~/hypergrowth-skills/email-drafting/SKILL.md`
+5. Send results to WhatsApp ({user.whatsapp})
+
+Use `openclaw cron add` with `--at` set to 10 min after meeting end time, `--delete-after-run`, `--session isolated`, `--timeout-seconds 1200`. Name them `post-meeting-<short-name>`.
+
+**Hard requirement:** after creating jobs, run `openclaw cron list` and verify the expected number of `post-meeting-` jobs for today. If count is lower than expected, immediately retry creation and report failure explicitly.
+After processing, the cron should append the meeting title to `state/processed-meetings-YYYY-MM-DD.json` (array of meeting titles already processed). This lets the end-of-day catch-all skip them.
+
+## Sanity checks
+- **Calendar is source of truth for meeting count**: Cross-reference email threads with the actual calendar events. If an invite was moved/rescheduled, it's still ONE meeting — don't count it as multiple. Check the calendar event ID, not email threads, to determine unique meetings.
+- **First call vs follow-up**: Verify by checking if there is an ACTUAL past Granola meeting with this specific person (exact name match). Rescheduled invites or multiple scheduling emails do NOT make it a follow-up. Only a previously held meeting does.
+- **Message count check (MANDATORY):** Number of sent meeting-brief messages must equal number of external meetings. If not equal, send missing meeting messages immediately.
+- **Cron count check (MANDATORY):** Number of `pre-meeting-` jobs and `post-meeting-` jobs created for today must each equal number of external meetings.
+
+### Automated assertions (MANDATORY)
+After sending all meeting messages and creating all one-shot jobs, run:
+
+```bash
+python3 {user.workspace}/scripts/meeting_prep_assertions.py \
+  --date YYYY-MM-DD \
+  --brief-file {user.workspace}/state/meeting-prep-YYYY-MM-DD.md
+```
+
+- If exit code is 0: proceed normally.
+- If exit code is non-zero: create missing cron jobs and/or send missing meeting messages, then re-run until it passes.
+- Include the assertion result summary in your final internal completion note.
+
+## Meeting type-specific enrichment
+
+### Deal flow calls (new companies, potential clients/advisory)
+- Extract MORE detail from email threads: what the company does, product description, funding status, round size, investors, ARR if mentioned
+- Search Crunchbase/web for latest funding info if not in emails
+- Include company stage, team size, and key metrics when available
+
+### Investor/VC calls
+- Include link to the fund's profile page (website, Crunchbase, or AngelList)
+- Note their investment thesis, typical check size, and stage focus if findable
+- Helps identify fit before the call
+
+## Scheduling difficulty flag
+- If a meeting took a long time to schedule (intro was weeks/months before the actual meeting), flag it: "⏳ *Scheduling note:* Intro came in <date>, took <N weeks/months> to get on the books."
+- If the meeting was rescheduled multiple times, note how many times
+- This provides useful context on the relationship dynamic and signals the meeting may be higher-stakes
+
+## Rules
+- Executive style, concise
+- No external meetings today → NO_REPLY
+- Missing data → state briefly ("No email history found"), don't invent
+- Never silently omit a data source — if something returned nothing, say so
+- **No cross-contamination**: Each meeting brief must only include information verified for THAT specific attendee. Do not mix up intro sources, email threads, or Granola notes between different meetings. Double-check that every fact in a brief belongs to the correct person.
+- **No generic focus areas**: Focus must be anchored in (a) explicit prior action items from Granola and/or (b) explicit email trigger for this meeting. If neither exists, say so and use a discovery focus.

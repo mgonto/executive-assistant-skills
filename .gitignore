@@ -1,0 +1,10 @@
+# Personal config — each user creates their own from user.example.json
+config/user.json
+
+# State and logs (local only)
+state/
+logs/
+*.log
+
+# OS
+.DS_Store
