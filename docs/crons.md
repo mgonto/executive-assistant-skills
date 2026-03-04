@@ -18,8 +18,8 @@ Use `openclaw cron add` or edit the crons section in `~/.openclaw/openclaw.json`
   "name": "Daily Meeting Prep",
   "schedule": {
     "kind": "cron",
-    "expr": "30 8 * * 1,3",
-    "tz": "America/Argentina/Buenos_Aires"
+    "expr": "30 8 * * 1-5",
+    "tz": "America/New_York"
   },
   "sessionTarget": "isolated",
   "payload": {
@@ -35,14 +35,14 @@ Use `openclaw cron add` or edit the crons section in `~/.openclaw/openclaw.json`
 }
 ```
 
-> Adjust `expr` for your work days: `1,3` = Mon/Wed. For Mon–Fri use `1-5`.
+> Adjust `expr` and `tz` for your work days and timezone.
 > 1200s timeout (20 min) — needed for multi-meeting days with full research.
 
 ---
 
 ## 2. Daily Action Items → Todoist
 
-**When:** 8:00 PM on work days (after all meetings end)
+**When:** 6:00 PM on work days (after all meetings end)
 **Skill:** `action-items-todoist`
 
 ```json
@@ -50,8 +50,8 @@ Use `openclaw cron add` or edit the crons section in `~/.openclaw/openclaw.json`
   "name": "Daily Action Items → Todoist",
   "schedule": {
     "kind": "cron",
-    "expr": "0 20 * * 1,3",
-    "tz": "America/Argentina/Buenos_Aires"
+    "expr": "0 18 * * 1-5",
+    "tz": "America/New_York"
   },
   "sessionTarget": "isolated",
   "payload": {
@@ -81,7 +81,7 @@ Use `openclaw cron add` or edit the crons section in `~/.openclaw/openclaw.json`
   "schedule": {
     "kind": "cron",
     "expr": "0 9 * * 1-5",
-    "tz": "America/Argentina/Buenos_Aires"
+    "tz": "America/New_York"
   },
   "sessionTarget": "isolated",
   "payload": {
