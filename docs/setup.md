@@ -193,6 +193,11 @@ mcporter list-tools granola   # should list meeting tools
 mcporter list-tools grain     # should list transcript tools
 mcporter list-tools todoist   # should list task tools
 gog gmail list "in:inbox" --account your@email.com --max 1 --json
+source ~/.openclaw/workspace/.env && todoist-cli today --json  # should list today's tasks
 ```
 
 Then set up cron jobs per `docs/crons.md`.
+
+### Skill-specific notes
+
+- **todoist-due-drafts** requires both `todoist-cli` (step 9) and `gog` (step 10) to be working. It reads Todoist tasks, searches Gmail for existing threads, and creates drafts — so all three auth flows must be complete. It also depends on the `email-drafting` skill's style guide (step 4).
