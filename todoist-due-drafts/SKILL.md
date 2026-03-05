@@ -37,10 +37,23 @@ Read and follow `~/executive-assistant-skills/email-drafting/SKILL.md` for all d
 
 For each task:
 1. **Identify the recipient**: Extract person/company name from task content + description
-2. **Search email history**: Find the latest thread with this person across both Gmail accounts to get context, their email address, and the right account to reply from
-3. **Determine email type**: follow-up, ping/check-in, intro, send-doc, etc.
-4. **Draft the email**: Create a Gmail draft on the correct account (the one with the existing thread). If it's a reply, use `--thread-id` to keep it in the same thread.
-5. **Use context**: Pull from the task description (which should have meeting/Granola links) and email history to write a contextual, non-generic draft
+2. **Pull meeting context from Granola/Grain**: The task description should contain the meeting name/date. Use this to retrieve the actual conversation:
+   ```bash
+   # Find the meeting in Granola
+   mcporter call granola list_meetings --args '{"time_range": "custom", "custom_start": "<meeting-date>", "custom_end": "<meeting-date+1>"}'
+   # Query for what was discussed with this person
+   mcporter call granola query_granola_meetings --args '{"query": "What did {user.name} discuss with <recipient> and what did he promise or commit to do?", "document_ids": ["<meeting_id>"]}'
+   ```
+   Then cross-check with Grain for the full transcript:
+   ```bash
+   mcporter call grain.list_attended_meetings --args '{"filters": {"start_date": "<meeting-date>", "end_date": "<meeting-date+1>"}}'
+   mcporter call grain.fetch_meeting_transcript --args '{"meeting_id": "<grain_meeting_id>"}'
+   ```
+   **This is the most important step** — the email draft must reflect what was actually said in the meeting, not just the task title. Look for: specific commitments, timelines discussed, names/projects mentioned, tone of the conversation, and any docs/links promised.
+3. **Search email history**: Find the latest thread with this person across both Gmail accounts to get context, their email address, and the right account to reply from
+4. **Determine email type**: follow-up, ping/check-in, intro, send-doc, etc.
+5. **Draft the email**: Create a Gmail draft on the correct account (the one with the existing thread). If it's a reply, use `--thread-id` to keep it in the same thread.
+6. **Use all context together**: Combine the meeting transcript (what was actually discussed), task description, and email history to write a specific, contextual draft. Never write generic follow-ups — reference concrete topics from the conversation.
 
 #### Draft rules
 - Mirror the language of the existing thread (English or Spanish)

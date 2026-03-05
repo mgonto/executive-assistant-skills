@@ -33,8 +33,14 @@ source {user.workspace}/.env
 ```
 Read `{user.workspace}/skills/todoist-api/SKILL.md` for CLI usage. For each action item:
 ```bash
-todoist-cli add "<actionable title>" --description "<context: meeting name, who requested, Granola link>" --priority <1-4> --labels "<relevant>"
+todoist-cli add "<actionable title>" --description "<context: meeting name, meeting date/time, who requested, Granola link>" --priority <1-4> --labels "<relevant>"
 ```
+
+**Task description MUST include:**
+- Meeting name (e.g. "Braintrust Weekly")
+- Meeting date and time (e.g. "Wed Mar 5, 15:00 ART")
+- Who requested / context
+- Granola citation link
 
 **Rules:**
 - **Only your actions**: Granola summaries often list "next steps" without clear ownership. Be skeptical — if the action could belong to the other person (e.g. "digest their own content", "check availability", "get back to us"), do NOT create a task. When in doubt, create a FOLLOW-UP task ("Ping X about Y") rather than an ownership task.
