@@ -44,6 +44,14 @@ todoist-cli add "<actionable title>" --description "<context: meeting name, who 
 - **Labels**: Tag: intro, follow-up, email, urgent as appropriate
 - **Priority**: 4=urgent/time-sensitive, 3=promised deliverables, 2=general follow-ups, 1=normal
 
+#### No split tasks for sequential steps (MANDATORY)
+Never create separate tasks for steps that are part of the same workflow. If the action is "prepare X then send X" — that's ONE task, not two. Examples:
+- ❌ "Build proposal" + "Send proposal" → ✅ "Build and send proposal"
+- ❌ "Write draft" + "Send email" → ✅ "Draft and send email to X"
+- ❌ "Review deck" + "Share deck" → ✅ "Review and share deck with X"
+
+One task per intent. The user will naturally do the steps in order.
+
 #### Todo dedup (MANDATORY)
 Before creating a task, run a duplicate check against open Todoist tasks:
 1. Normalize proposed title (lowercase, trim punctuation, collapse whitespace)
@@ -86,14 +94,32 @@ When the meeting is a FIRST call with a VC or dealflow company:
 #### Proposal-only commitment rule (MANDATORY)
 If you committed to "build a proposal" (or equivalent: proposal/deck/scope draft to prepare first):
 - **Do NOT draft an outbound email yet**.
-- Create a Todoist task to build the proposal.
-- Optionally create a second reminder task to send proposal once ready.
+- Create a **single** Todoist task to build AND send the proposal — e.g. "Build and send advisory proposal to Gabriel (BairesDev)".
+- Do NOT create separate tasks for "build" and "send" — that's redundant. One task covers the full lifecycle.
 
-## Deduplication
-- Before processing, read `{user.workspace}/state/processed-meetings-YYYY-MM-DD.json` (if it exists — array of meeting titles)
-- Skip any meetings already in that list
-- After processing each meeting, append its title to the file
-- This prevents double-processing between post-meeting crons and the end-of-day catch-all
+## Deduplication (CRITICAL — prevents duplicate tasks)
+
+### Meeting-level dedup
+- **FIRST STEP before any processing**: Read `{user.workspace}/state/processed-meetings-YYYY-MM-DD.json` (if it exists — array of meeting titles)
+- Skip any meetings already in that list — do NOT re-process them
+- **Immediately after processing each meeting** (before moving to the next), append its title to the file. Do NOT wait until the end — write after each meeting to prevent races with other crons.
+- This file is the single source of truth for "was this meeting already processed today?"
+
+### Task-level dedup
+- Before creating ANY task, check BOTH open AND recently completed tasks for near-duplicates:
+  1. Fetch open tasks: `todoist-cli list`
+  2. Fetch today's completed tasks: use Todoist Sync API `completed/get_all` with `since=<today 00:00 UTC>` or `todoist-cli list --filter "completed today"` if supported
+  - Same person + same action intent = duplicate (e.g. "Text Morgane about Hank" and "Text Morgane (Braintrust) after Hank call")
+  - Normalize: lowercase, strip parentheticals, collapse whitespace
+  - If duplicate exists in EITHER open or completed → SKIP, do not create
+- Report skipped duplicates in output: "⏭️ Skipped (already exists): [task]"
+- **Why check completed tasks**: The user may have already completed a task created by a post-meeting cron earlier today. Recreating it is wrong — the work is done.
+
+### Why both layers matter
+Post-meeting crons fire per-meeting. The daily end-of-day cron processes ALL meetings. Without meeting-level dedup, the same meeting gets processed twice. Without task-level dedup, even if the meeting is re-processed (e.g. file write failed), individual tasks won't be duplicated.
+
+### Dedup is NON-NEGOTIABLE
+If a meeting appears in `processed-meetings-YYYY-MM-DD.json`, do NOT process it again under any circumstances — even if you think the post-meeting cron "might have missed something." The post-meeting cron already handled it. If it had issues, the user will ask for a re-run manually.
 
 ### 5. Check if existing Todoist tasks were fulfilled in today's meetings
 After processing action items, also check if any **existing open Todoist tasks** were addressed/completed during today's meetings:

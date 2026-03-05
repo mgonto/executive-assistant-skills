@@ -12,7 +12,7 @@ After setting up these skills with [OpenClaw](https://docs.openclaw.ai/), I let 
 | `action-items-todoist` | EA reviewing meeting notes, creating follow-up tasks, and drafting emails you promised to send |
 | `email-drafting` | EA drafting replies, intro emails, scheduling responses, and thank-you notes in your voice |
 | `executive-digest` | EA giving you a morning status update: stalled threads, pending intros, overdue tasks, calendar conflicts |
-| `humanizer` | Making sure nothing your Claw writes sounds like AI wrote it |
+| `humanizer` | Making sure nothing your Claw writes sounds like AI wrote it (originally by [biostartechnology](https://clawhub.ai/biostartechnology/humanizer)) |
 
 ## How it works
 

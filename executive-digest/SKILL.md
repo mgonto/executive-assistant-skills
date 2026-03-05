@@ -40,13 +40,20 @@ gog --account {user.work_email} --no-input calendar events --from today --to '+7
 
 ### 4. Check Gmail for pending items
 - Recent intros not actioned: `subject:(intro OR introduction OR connecting) newer_than:7d`
+  - **For each intro thread, check SENT mail in the same thread** — if Gonto already replied, skip it entirely
 - Follow-ups from others: `(following up OR checking in OR circling back) newer_than:7d`
+  - **Same rule: check SENT mail before surfacing** — only flag if no reply was sent
 - Drafts awaiting send
 
 **Draft hygiene (MANDATORY):**
 - For each draft candidate, check if a matching message (same thread/subject intent) was already sent from that account.
 - If already sent, delete the stale draft and exclude it from digest output.
 - Only report drafts that still require a send/edit decision.
+
+**Stale draft auto-cleanup (MANDATORY):**
+- For EVERY draft found, fetch the full thread (`gmail thread <threadId>`) and check if Gonto already replied manually (sent message in the same thread AFTER the draft was created).
+- If Gonto already replied in the thread → **delete the draft automatically** (`gmail drafts delete <draftId> --force`) and do NOT surface it in the digest.
+- This catches cases where auto-drafted replies become stale because Gonto replied on his own.
 
 ### 4b. Unanswered emails from known contacts
 Search BOTH Gmail accounts for recent inbound emails (last 7 days) from real people (not newsletters, automated, or system notifications) that have NO reply.

@@ -100,7 +100,39 @@ Use `openclaw cron add` or edit the crons section in `~/.openclaw/openclaw.json`
 
 ---
 
-## 4. Granola Token Refresh
+## 4. Todoist Due-Today Email Drafts
+
+**When:** 7:00 AM on work days (before the day starts)
+**Skill:** `todoist-due-drafts`
+
+Checks Todoist for tasks due today (and overdue) that involve pinging, emailing, or following up with someone. Auto-drafts the emails in the correct Gmail account/thread and sends a WhatsApp notification listing what was drafted. Doesn't send anything — just creates drafts for review.
+
+```json
+{
+  "name": "Todoist Due-Today Email Drafts",
+  "schedule": {
+    "kind": "cron",
+    "expr": "0 7 * * 1-5",
+    "tz": "America/Argentina/Buenos_Aires"
+  },
+  "sessionTarget": "isolated",
+  "payload": {
+    "kind": "agentTurn",
+    "thinking": "high",
+    "timeoutSeconds": 600,
+    "model": "sonnet",
+    "message": "Read ~/executive-assistant-skills/todoist-due-drafts/SKILL.md and process today's due tasks. Draft emails for any outreach/ping/follow-up tasks and notify via WhatsApp.\n\nAfter done: python3 scripts/cron_canary.py ping todoist-due-drafts"
+  },
+  "delivery": {
+    "mode": "announce",
+    "channel": "whatsapp"
+  }
+}
+```
+
+---
+
+## 5. Granola Token Refresh
 
 **When:** Every 5 hours (Granola tokens expire in ~6h)
 

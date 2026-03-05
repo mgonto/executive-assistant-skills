@@ -20,12 +20,40 @@ Do not proceed until you have these values.
 - Timezone: {user.timezone}
 - Calendars: primary of {user.primary_email} AND {user.work_email}
 - Today's meetings only
-- Only EXTERNAL meetings (attendees NOT from your email domains)
+- **ALL meetings with attendees** — both external and internal
+- Skip personal/solo events with no attendees (e.g. "Personal Trainer", "Golf", all-day reminders)
 
-## For each external meeting
+## Meeting types
+
+### External meetings (attendees outside your email domains)
+Full research brief (email context, Granola, LinkedIn, company research) — see below.
+
+### Internal meetings (all attendees from your email domains: hypergrowthpartners.com, growth.li)
+Lighter brief — no LinkedIn/company research needed, but still include:
+- Attendee list
+- Granola context from previous instances of this recurring meeting
+- Recent email threads related to the meeting topic/agenda
+- Any open action items from last time
+- Format: same structure but skip LinkedIn/company sections
+
+### Recurring collaborative meetings (e.g. podcasts, content sessions with external co-hosts)
+These are external meetings — give them full briefs. Don't skip recurring meetings just because they're familiar.
+
+## For each meeting
 
 ### 1. Event basics
 Title, local time ({user.timezone}), attendees.
+
+**RSVP status (MANDATORY):** For each attendee, check `responseStatus` from the calendar event:
+- `accepted` → no flag needed
+- `needsAction` → flag as "⚠️ hasn't responded"
+- `declined` → flag as "❌ declined"
+- `tentative` → flag as "❓ tentative"
+
+If ANY non-organizer external attendee has NOT accepted (`needsAction`, `tentative`, or `declined`), add a visible line in the brief:
+> ⚠️ *RSVP:* <name> hasn't accepted yet
+
+This is informational — it doesn't mean they won't join, but it's useful to know ahead of time, especially for first calls or important meetings.
 
 ### 2. Email context (90-day lookback, with historical fallback)
 Search Gmail both accounts for exchanges with attendees. For EACH attendee, search using these strategies in order:
@@ -148,13 +176,22 @@ After generating all briefs, ALSO create a one-shot cron job for EACH meeting th
 Use `openclaw cron add` with `--at` set to 10 min after meeting end time, `--delete-after-run`, `--session isolated`, `--timeout-seconds 1200`. Name them `post-meeting-<short-name>`.
 
 **Hard requirement:** after creating jobs, run `openclaw cron list` and verify the expected number of `post-meeting-` jobs for today. If count is lower than expected, immediately retry creation and report failure explicitly.
-After processing, the cron should append the meeting title to `{user.workspace}/state/processed-meetings-YYYY-MM-DD.json` (array of meeting titles already processed). This lets the end-of-day catch-all skip them.
+
+### Deduplication (MANDATORY)
+After processing, the cron MUST append the meeting title to `{user.workspace}/state/processed-meetings-YYYY-MM-DD.json` (array of meeting titles already processed). This lets the end-of-day catch-all skip them.
+
+**Before creating ANY Todoist task**, the cron MUST:
+1. Read `{user.workspace}/state/processed-meetings-YYYY-MM-DD.json` — if this meeting is already listed, SKIP entirely (another cron already handled it)
+2. Fetch all open Todoist tasks and check for duplicates by matching task content against the new task intent (same person + same action = duplicate)
+3. If a matching task already exists, do NOT create a duplicate — skip it silently
+
+This prevents the scenario where a post-meeting cron and the daily end-of-day cron both process the same meeting and create duplicate tasks.
 
 ## Sanity checks
 - **Calendar is source of truth for meeting count**: Cross-reference email threads with the actual calendar events. If an invite was moved/rescheduled, it's still ONE meeting — don't count it as multiple. Check the calendar event ID, not email threads, to determine unique meetings.
 - **First call vs follow-up**: Verify by checking if there is an ACTUAL past Granola meeting with this specific person (exact name match). Rescheduled invites or multiple scheduling emails do NOT make it a follow-up. Only a previously held meeting does.
-- **Message count check (MANDATORY):** Number of sent meeting-brief messages must equal number of external meetings. If not equal, send missing meeting messages immediately.
-- **Cron count check (MANDATORY):** Number of `pre-meeting-` jobs and `post-meeting-` jobs created for today must each equal number of external meetings.
+- **Message count check (MANDATORY):** Number of sent meeting-brief messages must equal number of meetings with attendees (external + internal). If not equal, send missing meeting messages immediately.
+- **Cron count check (MANDATORY):** Number of `pre-meeting-` jobs and `post-meeting-` jobs created for today must each equal number of meetings with attendees (external + internal).
 
 ### Automated assertions (MANDATORY)
 After sending all meeting messages and creating all one-shot jobs, run:
@@ -188,7 +225,7 @@ python3 {user.workspace}/scripts/meeting_prep_assertions.py \
 
 ## Rules
 - Executive style, concise
-- No external meetings today → NO_REPLY
+- No meetings with attendees today → NO_REPLY
 - Missing data → state briefly ("No email history found"), don't invent
 - Never silently omit a data source — if something returned nothing, say so
 - **No cross-contamination**: Each meeting brief must only include information verified for THAT specific attendee. Do not mix up intro sources, email threads, or Granola notes between different meetings. Double-check that every fact in a brief belongs to the correct person.
