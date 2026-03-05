@@ -1,6 +1,6 @@
 ---
 name: executive-digest
-description: Generate the daily executive digest with stalled scheduling threads, pending intros, follow-ups, open Todoist tasks, and upcoming calendar events. Use when running the daily digest cron or when user asks for a status digest.
+description: "Generate the daily executive digest — a single WhatsApp summary of everything needing attention: stalled scheduling, pending intros, unanswered emails, promised follow-ups, open Todoist tasks, and upcoming calendar events. Use when running the daily digest cron, or when user asks for a status digest, daily summary, \"what's pending\", or \"catch me up\"."
 ---
 # Daily Executive Digest
 
@@ -22,6 +22,14 @@ Do not proceed until you have these values.
   - `{user.workspace}/state/decisions-memory.json` — context on people/companies
   - `{user.workspace}/state/digest-state.json` — avoid repeating items
 
+Schema: `{"lastRun": "ISO date", "surfacedItems": [{"id": "thread_id or task_id", "type": "intro|followup|draft|task", "surfacedAt": "ISO date"}]}`. An item is "repeated" if its ID appeared in the last digest run. Re-surface only if its status changed since then.
+
+### Error handling
+If any data source (Gmail, Calendar, Todoist, Granola) fails or times out:
+- Log the error, note it in the digest as "⚠️ [Source] unavailable — skipped"
+- Continue with remaining sources — never halt the entire digest for one failure
+- If BOTH Gmail accounts fail, abort and notify: "⚠️ Digest failed — Gmail unreachable"
+
 ### 2. Check Todoist
 ```bash
 source {user.workspace}/.env
@@ -38,11 +46,15 @@ gog --account {user.work_email} --no-input calendar events --from today --to '+7
 ```
 **CRITICAL: You MUST run BOTH commands and merge ALL events from both calendars into a single timeline.** Events live on different calendars — showing only one gives an incomplete picture. Deduplicate by time+title if the same event appears on both. Look for OOO, travel, vacation blocks, back-to-back conflicts, and double-bookings across calendars.
 
-### 4. Check Gmail for pending items
+### 4. Check Gmail for pending items — BOTH accounts
+
+**Universal rule (applies to ALL sub-steps below):** Before surfacing ANY email item, search SENT mail on the same account for a reply in that thread. If Gonto already replied → skip the item. If a draft exists for an already-replied thread → delete the draft silently (`gog gmail drafts delete <draftId> --force`). This prevents surfacing stale items.
+
+Use `gog --account {email} --no-input gmail search "query" --json` for all searches. Run each query against BOTH accounts.
+
+#### 4a. Pending intros and follow-ups
 - Recent intros not actioned: `subject:(intro OR introduction OR connecting) newer_than:7d`
-  - **For each intro thread, check SENT mail in the same thread** — if Gonto already replied, skip it entirely
 - Follow-ups from others: `(following up OR checking in OR circling back) newer_than:7d`
-  - **Same rule: check SENT mail before surfacing** — only flag if no reply was sent
 - Drafts awaiting send
 
 **Draft hygiene (MANDATORY):**
@@ -55,14 +67,13 @@ gog --account {user.work_email} --no-input calendar events --from today --to '+7
 - If Gonto already replied in the thread → **delete the draft automatically** (`gmail drafts delete <draftId> --force`) and do NOT surface it in the digest.
 - This catches cases where auto-drafted replies become stale because Gonto replied on his own.
 
-### 4b. Unanswered emails from known contacts
+#### 4b. Unanswered emails from known contacts
 Search BOTH Gmail accounts for recent inbound emails (last 7 days) from real people (not newsletters, automated, or system notifications) that have NO reply.
-- Check SENT mail on the same account for a reply in the same thread
 - If no reply exists after 24-48h, surface it as needing a decision (reply, ignore, or delegate)
 - Prioritize: known contacts > first-time senders, VIPs always surface
 - Frame as: "[Name] emailed about [topic] — reply, ignore, or delegate?"
 
-### 4c. Promised follow-ups not yet executed
+#### 4c. Promised follow-ups not yet executed
 Scan for commitments made but not yet completed:
 - **From SENT mail (last 14 days):** Look for promises like "I'll intro you", "I'll send the deck", "let me connect you with", "I'll follow up with" — then check if the intro/email was actually sent
 - **From Todoist:** Check open tasks tagged with follow-up intent (intros, send deck, ping someone) that are overdue or due today
@@ -74,8 +85,16 @@ Scan for commitments made but not yet completed:
   Surface anything that fell through the cracks — promised but not yet actioned.
 - Frame as: "Promised [action] to [person] on [date] — still pending"
 
+### Additional checks (per DIGEST_RULES.md)
+For sections not explicitly covered above, follow `{user.workspace}/style/DIGEST_RULES.md`:
+- OOO conflict detection (§2)
+- Action-required non-urgent emails — billing, contracts, renewals (§7)
+- Decision memory integration — read and apply `{user.workspace}/state/decisions-memory.json` for context on people/companies
+
 ### 5. Compile and send
 - Format per `{user.workspace}/style/DIGEST_RULES.md`
 - If items exist → send via WhatsApp to {user.whatsapp}
 - Update `{user.workspace}/state/digest-state.json` with items surfaced
-- Nothing needs attention → NO_REPLY
+- Nothing needs attention:
+  - **Cron context**: NO_REPLY (don't send anything)
+  - **User asked for digest**: Send "Nothing needs attention today ✅"

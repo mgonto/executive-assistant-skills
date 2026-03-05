@@ -1,6 +1,6 @@
 ---
 name: action-items-todoist
-description: Extract action items from today's Granola meetings, create Todoist tasks, and draft follow-up emails. Use when running the daily action items cron or when user asks to process meeting action items.
+description: "Extract action items from today's Granola/Grain meetings, create Todoist tasks, complete fulfilled tasks, and draft meeting-triggered follow-up emails. Use when running the daily action items cron, post-meeting cron, or when user asks to process meeting action items. NOT for general email drafting without meeting context."
 ---
 # Action Items → Todoist + Email Drafts
 
@@ -28,12 +28,12 @@ mcporter call granola query_granola_meetings --args '{"query": "What are all of 
 Pass ALL meeting IDs. Preserve citation links.
 
 ### 3. Create Todoist tasks
-```bash
-source {user.workspace}/.env
-```
+
+> **Note:** Load env in the same command — each shell call is a fresh session.
+
 Read `{user.workspace}/skills/todoist-api/SKILL.md` for CLI usage. For each action item:
 ```bash
-todoist-cli add "<actionable title>" --description "<context: meeting name, meeting date/time, who requested, Granola link>" --priority <1-4> --labels "<relevant>"
+source {user.workspace}/.env && todoist-cli add "<actionable title>" --description "<context: meeting name, meeting date/time, who requested, Granola link>" --priority <1-4> --labels "<relevant>"
 ```
 
 **Task description MUST include:**
@@ -61,7 +61,7 @@ One task per intent. The user will naturally do the steps in order.
 #### Todo dedup (MANDATORY)
 Before creating a task, run a duplicate check against open Todoist tasks:
 1. Normalize proposed title (lowercase, trim punctuation, collapse whitespace)
-2. Search open tasks (`todoist-cli list --filter "!completed"`) and compare normalized content
+2. Search open tasks (`source {user.workspace}/.env && todoist-cli list --filter "!completed"`) and compare normalized content
 3. Treat near-identical intro tasks as duplicates (e.g., "Intro David to Marcos" vs "Intro David (n8n) to Marcos Nils")
 4. If duplicate exists: do NOT create a new task; append meeting context to the existing task description when useful
 5. In output, report dedup decisions under `Skipped as duplicates:`
@@ -75,6 +75,7 @@ For ANY email that needs drafting (intros, follow-ups, VC replies, sending docs,
   - First call with a VC or new lead
   - Any promise to email someone
 - When in doubt about whether to draft → DRAFT IT
+- **Exception**: The proposal-only commitment rule below overrides this. If the commitment is to build a proposal first, do NOT draft — create a Todoist task only.
 - **HGP Deck**: `{user.workspace}/assets/HGP_Deck_2025.pdf` — attach via `--attach {user.workspace}/assets/HGP_Deck_2025.pdf`. Say "Hypergrowth Partners deck" in the email body (not "one-pager" or "our deck")
 - **When drafting intros to known contacts**: search sent emails for previous intros to them, use the same format, tone, and description
 
@@ -103,18 +104,35 @@ If you committed to "build a proposal" (or equivalent: proposal/deck/scope draft
 - Create a **single** Todoist task to build AND send the proposal — e.g. "Build and send advisory proposal to Gabriel (BairesDev)".
 - Do NOT create separate tasks for "build" and "send" — that's redundant. One task covers the full lifecycle.
 
+### 5. Check if existing Todoist tasks were fulfilled in today's meetings
+After processing action items, also check if any **existing open Todoist tasks** were addressed/completed during today's meetings:
+1. List open tasks: `source {user.workspace}/.env && todoist-cli list`
+2. For each meeting, check if the discussion covered or fulfilled any open task (e.g., "Share AI strategy with Colin" → discussed AI strategy directly with Colin in the call)
+3. If a task was clearly fulfilled in the meeting, **complete it**: `source {user.workspace}/.env && todoist-cli complete <task_id>`
+4. Report completed tasks in the output: "✅ Completed: [task] — fulfilled during [meeting name]"
+
+This ensures Todoist stays clean and reflects what actually happened.
+
+## Error handling
+- If `mcporter call granola` fails with auth errors: report "⚠️ Granola auth expired, run `mcporter auth granola --reset`" and stop.
+- If `todoist-cli` fails: verify `.env` is sourced and token is valid. Report error.
+- If Grain MCP is unavailable: proceed with Granola-only extraction, note in output "⚠️ Grain unavailable, results are Granola-only."
+- If any step fails, continue with remaining steps when possible — don't abort the entire run for one failure.
+
 ## Deduplication (CRITICAL — prevents duplicate tasks)
 
 ### Meeting-level dedup
-- **FIRST STEP before any processing**: Read `{user.workspace}/state/processed-meetings-YYYY-MM-DD.json` (if it exists — array of meeting titles)
-- Skip any meetings already in that list — do NOT re-process them
-- **Immediately after processing each meeting** (before moving to the next), append its title to the file. Do NOT wait until the end — write after each meeting to prevent races with other crons.
+- **FIRST STEP before any processing**: Read `{user.workspace}/state/processed-meetings-YYYY-MM-DD.json` (if it exists — array of Granola meeting IDs)
+- Skip any meetings whose ID is already in that list — do NOT re-process them
+- **Immediately after processing each meeting** (before moving to the next), append its Granola meeting ID to the file. Do NOT wait until the end — write after each meeting to prevent races with other crons.
 - This file is the single source of truth for "was this meeting already processed today?"
+
+> **Note:** Titles are fragile for recurring meetings that share the same name. Always dedup by Granola meeting ID.
 
 ### Task-level dedup
 - Before creating ANY task, check BOTH open AND recently completed tasks for near-duplicates:
-  1. Fetch open tasks: `todoist-cli list`
-  2. Fetch today's completed tasks: use Todoist Sync API `completed/get_all` with `since=<today 00:00 UTC>` or `todoist-cli list --filter "completed today"` if supported
+  1. Fetch open tasks: `source {user.workspace}/.env && todoist-cli list`
+  2. Fetch today's completed tasks: use Todoist Sync API `completed/get_all` with `since=<today 00:00 UTC>` or `source {user.workspace}/.env && todoist-cli list --filter "completed today"` if supported
   - Same person + same action intent = duplicate (e.g. "Text Morgane about Hank" and "Text Morgane (Braintrust) after Hank call")
   - Normalize: lowercase, strip parentheticals, collapse whitespace
   - If duplicate exists in EITHER open or completed → SKIP, do not create
@@ -126,15 +144,6 @@ Post-meeting crons fire per-meeting. The daily end-of-day cron processes ALL mee
 
 ### Dedup is NON-NEGOTIABLE
 If a meeting appears in `processed-meetings-YYYY-MM-DD.json`, do NOT process it again under any circumstances — even if you think the post-meeting cron "might have missed something." The post-meeting cron already handled it. If it had issues, the user will ask for a re-run manually.
-
-### 5. Check if existing Todoist tasks were fulfilled in today's meetings
-After processing action items, also check if any **existing open Todoist tasks** were addressed/completed during today's meetings:
-1. List open tasks: `todoist-cli list`
-2. For each meeting, check if the discussion covered or fulfilled any open task (e.g., "Share AI strategy with Colin" → discussed AI strategy directly with Colin in the call)
-3. If a task was clearly fulfilled in the meeting, **complete it**: `todoist-cli complete <task_id>`
-4. Report completed tasks in the output: "✅ Completed: [task] — fulfilled during [meeting name]"
-
-This ensures Todoist stays clean and reflects what actually happened.
 
 ## Output
 - Tasks created or drafts composed → list tasks with short summary
@@ -156,8 +165,5 @@ Grain MCP is available with full transcript access. After extracting action item
 
 If a Grain meeting can't be found (e.g. recording wasn't on), fall back to Granola only + skepticism rules.
 
-## Rules
-- Only your (the user's) action items
-- Be specific with names — never generic references
-- Include Granola citation links
-- When in doubt about whether to draft → DRAFT IT
+#### Matching Grain to Granola meetings
+Match by time overlap (within 15 min of start time), not by title. Grain and Granola may name the same meeting differently. If no Grain match found within the time window, proceed without cross-check.

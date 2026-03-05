@@ -1,6 +1,6 @@
 ---
 name: meeting-prep
-description: Prepare daily meeting briefs with email context, Granola history, LinkedIn research, and company news. Use when running the daily meeting prep cron or when user asks to prepare for today's meetings.
+description: Prepare briefings for today's meetings — attendee research, email history, past meeting notes, LinkedIn, and company context. Use when running the daily meeting prep cron, or when user asks to prepare for meetings, review who they're meeting with, or get context on upcoming calls.
 ---
 # Daily Meeting Prep
 
@@ -38,6 +38,11 @@ Lighter brief — no LinkedIn/company research needed, but still include:
 
 ### Recurring collaborative meetings (e.g. podcasts, content sessions with external co-hosts)
 These are external meetings — give them full briefs. Don't skip recurring meetings just because they're familiar.
+
+## Error handling
+- If `gog calendar` fails for one account: continue with the other account, note "⚠️ [account] calendar unavailable" in output.
+- If Granola/Grain fails: continue without meeting history, note it per meeting.
+- If WhatsApp delivery fails: attempt Slack delivery. If both fail, save to state file and report error.
 
 ## For each meeting
 
@@ -89,6 +94,8 @@ mcporter call granola.query_granola_meetings query="meetings with [attendee name
 - **No results / first meeting:** Note that, provide email context instead
 - Preserve citation links `[[N]](url)`
 - Include a short explicit line: **"Why this meeting now"** based on prior action items or current email trigger
+- **Exact name matching**: When attributing Granola results to an attendee, verify BOTH first AND last name match exactly. Different people can share a first name — never assume a match based on first name alone.
+- **Auth failure:** If Granola returns an auth error, run `mcporter auth granola --reset` and retry once. If still failing, note "⚠️ Granola unavailable" and continue without it.
 
 ### 4. LinkedIn research
 - Search: `"[attendee name] [company] LinkedIn"`
@@ -102,24 +109,12 @@ mcporter call granola.query_granola_meetings query="meetings with [attendee name
 ## Research rules
 Read `{user.workspace}/style/MEETING_PREP_RULES.md` for additional research steps.
 
-## Attendee research rules
-- Research ALL attendees on the invite, even if they declined
-- Declined attendees: still search email history + LinkedIn, note "(declined)" next to their name
-- Multiple attendees: search email history with EACH person individually
-
-## Granola rules
-- Query Granola for EVERY external meeting attendee and company
-- If Granola returns results: include summary, action items, open loops, citation links
-- If Granola returns NO results: explicitly state "No previous meetings found in Granola"
-- Never silently skip Granola lookups
-- **Exact name matching**: When attributing Granola results to an attendee, verify BOTH first AND last name match exactly. Different people can share a first name — never assume a match based on first name alone.
-
 ## Output format
-Send via WhatsApp ({user.whatsapp}) AND Slack (DM to {user.slack_username}). **One message per meeting, chronological order, is mandatory.** Send to both channels.
+Send via WhatsApp ({user.whatsapp}) AND Slack (DM to {user.slack_username}). **One message per meeting, chronological order, is mandatory.**
 
-**Never collapse into a single summary block.** The user expects one standalone message per meeting.
+**Never collapse into a single summary block.** The user expects one standalone message per meeting. Send each meeting brief as a separate message to BOTH WhatsApp and Slack. If one channel fails, still deliver to the other.
 
-Start with a short intro: "📋 *MEETING PREP — <day>* — <N> external meetings"
+Start with a short intro: "📋 *MEETING PREP — <day>* — <N> meetings (<X> external, <Y> internal)"
 
 Then one message per meeting in this format — use bold subsections and blank lines between each section for readability:
 ```
@@ -166,12 +161,9 @@ Use `openclaw cron add` with `--at` set to 5 min before meeting time and `--dele
 **Hard requirement:** after creating jobs, run `openclaw cron list` and verify the expected number of `pre-meeting-` jobs for today. If count is lower than expected, immediately retry creation and report failure explicitly.
 
 ## Post-meeting action items + drafts
-After generating all briefs, ALSO create a one-shot cron job for EACH meeting that fires 10 minutes after the meeting END time. The cron job should:
-1. Read `~/executive-assistant-skills/action-items-todoist/SKILL.md`
-2. Query Granola for ONLY the meeting that just ended (by title, attendee, or time)
-3. Extract action items → create Todoist tasks
-4. Draft any follow-up emails per `~/executive-assistant-skills/email-drafting/SKILL.md`
-5. Send results to WhatsApp ({user.whatsapp})
+After generating all briefs, create a one-shot cron job for EACH meeting that fires 10 minutes after the meeting END time. The cron task should reference the action-items-todoist skill:
+
+Task: "Read and follow ~/executive-assistant-skills/action-items-todoist/SKILL.md. Process ONLY the meeting titled '<meeting title>' that ended around <end time>. Send results to WhatsApp ({user.whatsapp})."
 
 Use `openclaw cron add` with `--at` set to 10 min after meeting end time, `--delete-after-run`, `--session isolated`, `--timeout-seconds 1200`. Name them `post-meeting-<short-name>`.
 
@@ -203,7 +195,7 @@ python3 {user.workspace}/scripts/meeting_prep_assertions.py \
 ```
 
 - If exit code is 0: proceed normally.
-- If exit code is non-zero: create missing cron jobs and/or send missing meeting messages, then re-run until it passes.
+- If exit code is non-zero: create missing cron jobs and/or send missing meeting messages, then re-run up to 2 times. If still failing after 2 retries, report the assertion output in your completion note and proceed.
 - Include the assertion result summary in your final internal completion note.
 
 ## Meeting type-specific enrichment

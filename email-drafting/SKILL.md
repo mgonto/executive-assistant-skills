@@ -1,6 +1,6 @@
 ---
 name: email-drafting
-description: Auto-draft and manually-requested email drafts for Gonto's accounts. Use when drafting, replying, or sending emails, or when Gmail hooks detect draft triggers.
+description: Draft email replies for Gonto's Gmail accounts (m@gon.to, gonto@hypergrowthpartners.com). Handles intro acceptances, scheduling intent, thanks/ack, and positive short replies. Use when user asks to draft or reply to an email, or when Gmail webhook triggers arrive for auto-draft classification. Draft-only mode — never sends automatically.
 ---
 # Email Drafting Skill
 
@@ -29,20 +29,20 @@ Auto-draft and manually-requested email drafts for {user.primary_email} and {use
 - NEVER proposes specific dates/times or creates calendar events
 
 ## Execution
-- **"Reply" always means Reply All** — include all original To + CC recipients. Only exclude if user explicitly says to reply to one person.
+- **"Reply" always means Reply All** — include all original To + CC recipients. Only exclude if user explicitly says to reply to one person. Exception: intro handling moves the introducer to BCC per the intro sequence below.
 - **After sending any email/draft**, check if it fulfills an open Todoist task (send deck, intro, follow-up, etc.). If yes → complete the task immediately and confirm.
-- Always run via isolated sub-agent (not main session context)
-- Sub-agent reads this SKILL.md + style files below, NOT MEMORY.md or daily memory files
+- **Hook/cron triggers**: Always run via isolated sub-agent (prevents memory/context contamination)
+- **Direct user requests** ("draft a reply to X"): Main agent may execute directly, but must still follow all style rules and must NOT read MEMORY.md or daily memory files
 
 ## Rules (non-negotiable)
 
 ### Core
 1. **Draft-only mode** — never send automatically
-2. **Mirror inbound language** — draft in the same language as the thread (Spanish/English)
+2. **Mirror inbound language** — match the language of the most recent non-automated message in the thread. If the thread has mixed languages, default to the language of the message you're replying to.
 3. **Always sign** — end every draft with `{user.signature}`
 4. **Low confidence** — don't draft; ask user for guidance
 5. **No dash punctuation** — no em-dash/en-dash in bodies. Use commas/periods.
-6. **Humanize** — apply `~/executive-assistant-skills/humanizer/SKILL.md` to every draft before finalizing
+6. **Humanize** — before finalizing any draft, review it against `~/executive-assistant-skills/humanizer/SKILL.md`. Remove AI-writing markers: inflated symbolism, promotional tone, em-dash overuse, "delve"/"leverage"/"foster" vocabulary, rule-of-three patterns. Email-specific rules (no dashes, signature, brevity) take precedence over humanizer suggestions if they conflict.
 
 ### Intro Handling (required sequence)
 1. Thank introducer first
@@ -68,6 +68,11 @@ Auto-draft and manually-requested email drafts for {user.primary_email} and {use
 ### Notification Format
 - `account + one-line intent + draft link`
 - Example: `📧 Draft ({user.primary_email} → John): intro acceptance. https://mail.google.com/...`
+
+## Draft Links
+After creating a draft via `gog`, extract the draft ID from the response.
+Gmail draft URL format: `https://mail.google.com/mail/u/?authuser={account_email}#drafts?compose={message_id}`
+Use `authuser=m@gon.to` or `authuser=gonto@hypergrowthpartners.com` as appropriate.
 
 ## Trigger Detection
 
@@ -141,11 +146,8 @@ Key points:
 - **Don't:** over-explain, corporate fluff, long formal prose
 
 ## Templates
-See `{user.workspace}/style/EMAIL_TEMPLATES.md` for pattern templates (intros, follow-ups, VC, etc.)
-See `{user.workspace}/style/email-templates.md` for HGP business templates (v1).
-
-## Feedback Log
-Already referenced in Style section above.
+- **Primary**: `{user.workspace}/style/EMAIL_TEMPLATES.md` — pattern templates (intros, follow-ups, VC, etc.)
+- **Legacy (HGP v1)**: `{user.workspace}/style/email-templates.md` — HGP business templates. Use only for HGP-specific business contexts. Primary templates take precedence on conflicts.
 
 ## Audit Logging (MANDATORY)
 After every external action, log it:
