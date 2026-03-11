@@ -13,7 +13,29 @@ Extract and use throughout:
 
 Do not proceed until you have these values.
 
+## Debug Logging (MANDATORY)
+Read `../config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py action-items <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (gog, mcporter, todoist-cli). On any error, log the full command and stderr before continuing.
+
 ## Steps
+
+### 0. Check today's calendar for meetings (BOTH accounts)
+Before querying Granola, get today's actual meetings from BOTH calendars to know what to expect:
+```bash
+python3 {user.workspace}/scripts/skill_log.py action-items INFO "Starting action-items run"
+
+# Get today's date in YYYY-MM-DD and tomorrow's
+TODAY=$(date -u -d "$(TZ=America/Argentina/Buenos_Aires date +%Y-%m-%d)" +%Y-%m-%d)
+TOMORROW=$(date -u -d "$(TZ=America/Argentina/Buenos_Aires date -d '+1 day' +%Y-%m-%d)" +%Y-%m-%d)
+
+# Check BOTH calendars
+gog --account {user.primary_email} --no-input calendar list primary --from "${TODAY}T00:00:00-03:00" --to "${TOMORROW}T00:00:00-03:00" --json 2>&1
+gog --account {user.work_email} --no-input calendar list primary --from "${TODAY}T00:00:00-03:00" --to "${TOMORROW}T00:00:00-03:00" --json 2>&1
+```
+Log the results: `python3 {user.workspace}/scripts/skill_log.py action-items DEBUG "Calendar events found" '{"primary": N, "work": M, "total": N+M}'`
+
+Merge events from both calendars. Filter for meetings with attendees (skip solo/personal events). This gives you the ground truth of what meetings happened today — use it to cross-check Granola results and catch any meetings Granola missed.
+
+**CRITICAL date syntax:** Use explicit ISO8601 dates with `-03:00` offset. Do NOT use relative expressions like `+1 day`, `today`, or `tomorrow` in gog flags — they may not be supported. Always compute the actual date strings.
 
 ### 1. Get today's meetings from Granola
 
@@ -22,7 +44,11 @@ Do not proceed until you have these values.
 ```bash
 mcporter call granola list_meetings --args '{"time_range": "custom", "custom_start": "<today YYYY-MM-DD>", "custom_end": "<tomorrow YYYY-MM-DD>"}'
 ```
-Collect meeting IDs and titles. Skip if no meetings.
+Collect meeting IDs and titles. Log: `python3 {user.workspace}/scripts/skill_log.py action-items INFO "Granola meetings found" '{"count": N, "titles": [...]}'`
+
+**Cross-check with calendar:** Compare Granola meetings against the calendar events from Step 0. If a calendar meeting with attendees has no Granola match (by time overlap within 15 min), log a warning — it may not have been recorded. Proceed with what Granola has, but note unmatched meetings in the output.
+
+Skip if no meetings (from either Granola or calendar).
 
 ### 2. Query Granola for MY action items + email triggers
 ```bash
@@ -117,6 +143,7 @@ After processing action items, also check if any **existing open Todoist tasks**
 This ensures Todoist stays clean and reflects what actually happened.
 
 ## Error handling
+- If `gog calendar` fails: log the error with full command + stderr (`python3 {user.workspace}/scripts/skill_log.py action-items ERROR "gog calendar failed" '{"command": "...", "stderr": "..."}'`), continue with the other account and/or Granola-only.
 - If `mcporter call granola` fails with auth errors: report "⚠️ Granola auth expired, run `mcporter auth granola --reset`" and stop.
 - If `todoist-cli` fails: verify `.env` is sourced and token is valid. Report error.
 - If Grain MCP is unavailable: proceed with Granola-only extraction, note in output "⚠️ Grain unavailable, results are Granola-only."

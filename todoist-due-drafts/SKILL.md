@@ -12,6 +12,9 @@ Extract and use throughout:
 - `workspace` — absolute path to OpenClaw workspace
 - `signature` — email signature
 
+## Debug Logging (MANDATORY)
+Read `../config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py todoist-due-drafts <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (todoist-cli, gog, mcporter). On any error, log the full command and stderr before continuing.
+
 ## Steps
 
 ### 1. Get today's due tasks from Todoist

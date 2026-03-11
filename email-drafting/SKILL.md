@@ -15,6 +15,9 @@ Extract and use throughout:
 
 Do not proceed until you have these values.
 
+## Debug Logging (MANDATORY)
+Read `../config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py email-drafting <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (gog gmail, mcporter, todoist-cli). On any error, log the full command and stderr before continuing.
+
 ## Overview
 Auto-draft and manually-requested email drafts for {user.primary_email} and {user.work_email}.
 
@@ -102,6 +105,7 @@ Use `authuser=m@gon.to` or `authuser=gonto@hypergrowthpartners.com` as appropria
 - Automated/system/calendar notifications
 - Messages requiring attachments, deep verification, or policy commitments
 - Language unclear or unmirrorable
+- **Scheduling confirmations** — NEVER auto-draft emails that simply confirm a scheduled time or acknowledge a calendar invite. The scheduling assistant (Alfred/Howie) handles all scheduling coordination. Auto-drafting "confirming our call at X" creates noise and duplicates the scheduler's work. This includes: confirming times proposed by the scheduler, acknowledging calendar invites, and "looking forward to our call" type replies to scheduling threads.
 
 ## Confidence Gate
 Only auto-draft when ALL are true:
@@ -160,8 +164,29 @@ After every external action, log it:
 - Only create email drafts
 - Include `--to <sender>` explicitly when creating drafts
 
+## Auto-Draft WhatsApp Notification (MANDATORY)
+Every time a draft is created automatically (via Gmail hook or any automated trigger), you MUST send a WhatsApp notification to {user.whatsapp} with:
+
+```
+✏️ *Auto-draft created*
+
+*To:* <recipient name> (<email>)
+*Subject:* <subject>
+*Account:* <account>
+*Trigger:* <intro/scheduling/thanks/positive reply>
+
+*Draft text:*
+> <full draft body — include the complete text so user can review without opening Gmail>
+
+🔗 <Gmail draft link>
+
+Reply "send" to send, or edit in Gmail.
+```
+
+This is non-optional. The user must be able to read and approve the draft from WhatsApp without opening Gmail.
+
 ## Notification Policy
 - No routine "no change" notifications
-- Alert on: meaningful changes, breakages, time-sensitive items
+- Alert on: meaningful changes, breakages, time-sensitive items, **auto-drafted emails**
 - Time-sensitive: approvals, meeting changes, 2FA codes, security, travel changes
 - Evaluate Promotions, suppress Spam/Junk/Trash
