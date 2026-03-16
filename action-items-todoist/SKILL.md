@@ -1,11 +1,20 @@
 ---
 name: action-items-todoist
 description: "Extract action items from today's Granola/Grain meetings, create Todoist tasks, complete fulfilled tasks, and draft meeting-triggered follow-up emails. Use when running the daily action items cron, post-meeting cron, or when user asks to process meeting action items. NOT for general email drafting without meeting context."
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
+version: 1.0.0
+author: Martin Gontovnikas <gonto@hypergrowthpartners.com>
 ---
 # Action Items → Todoist + Email Drafts
 
 ## Config — read before starting
-Read `../config/user.json` (resolves to `~/executive-assistant-skills/config/user.json`).
+Read `${CLAUDE_PLUGIN_ROOT}/config/user.json` (resolves to `${CLAUDE_PLUGIN_ROOT}/config/user.json`).
 Extract and use throughout:
 - `name`, `full_name` — to identify your action items in meeting notes (e.g. "Gonto (Martin)")
 - `whatsapp` — for result delivery
@@ -14,7 +23,7 @@ Extract and use throughout:
 Do not proceed until you have these values.
 
 ## Debug Logging (MANDATORY)
-Read `../config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py action-items <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (gog, mcporter, todoist-cli). On any error, log the full command and stderr before continuing.
+Read `${CLAUDE_PLUGIN_ROOT}/config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py action-items <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (gog, mcporter, todoist-cli). On any error, log the full command and stderr before continuing.
 
 ## Steps
 
@@ -97,7 +106,7 @@ Before creating a task, run a duplicate check against open Todoist tasks:
 
 ### 4. Draft follow-up emails
 For ANY email that needs drafting (intros, follow-ups, VC replies, sending docs, etc.):
-- **Read and follow `~/executive-assistant-skills/email-drafting/SKILL.md`** — it is the single source of truth for all drafting rules, style, templates, humanization, and delivery
+- **Read and follow `${CLAUDE_PLUGIN_ROOT}/email-drafting/SKILL.md`** — it is the single source of truth for all drafting rules, style, templates, humanization, and delivery
 - Identify draft triggers from meeting notes:
   - Promised intros or follow-ups
   - Promised docs/PDFs/decks

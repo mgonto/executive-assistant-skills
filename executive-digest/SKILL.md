@@ -1,11 +1,20 @@
 ---
 name: executive-digest
 description: "Generate the daily executive digest — a single WhatsApp summary of everything needing attention: stalled scheduling, pending intros, unanswered emails, promised follow-ups, open Todoist tasks, and upcoming calendar events. Use when running the daily digest cron, or when user asks for a status digest, daily summary, \"what's pending\", or \"catch me up\"."
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
+version: 1.0.0
+author: Martin Gontovnikas <gonto@hypergrowthpartners.com>
 ---
 # Daily Executive Digest
 
 ## Config — read before starting
-Read `../config/user.json` (resolves to `~/executive-assistant-skills/config/user.json`).
+Read `${CLAUDE_PLUGIN_ROOT}/config/user.json` (resolves to `${CLAUDE_PLUGIN_ROOT}/config/user.json`).
 Extract and use throughout:
 - `primary_email`, `work_email` — both Gmail accounts to check
 - `whatsapp` — for delivery
@@ -14,7 +23,7 @@ Extract and use throughout:
 Do not proceed until you have these values.
 
 ## Debug Logging (MANDATORY)
-Read `../config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py exec-digest <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (gog, mcporter, todoist-cli). On any error, log the full command and stderr before continuing.
+Read `${CLAUDE_PLUGIN_ROOT}/config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py exec-digest <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (gog, mcporter, todoist-cli). On any error, log the full command and stderr before continuing.
 
 ## Steps
 

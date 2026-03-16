@@ -1,11 +1,22 @@
 ---
 name: meeting-prep
 description: Prepare briefings for today's meetings — attendee research, email history, past meeting notes, LinkedIn, and company context. Use when running the daily meeting prep cron, or when user asks to prepare for meetings, review who they're meeting with, or get context on upcoming calls.
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
+  - WebSearch
+  - WebFetch
+version: 1.0.0
+author: Martin Gontovnikas <gonto@hypergrowthpartners.com>
 ---
 # Daily Meeting Prep
 
 ## Config — read before starting
-Read `../config/user.json` (resolves to `~/executive-assistant-skills/config/user.json`).
+Read `${CLAUDE_PLUGIN_ROOT}/config/user.json` (resolves to `${CLAUDE_PLUGIN_ROOT}/config/user.json`).
 Extract and use throughout:
 - `name`, `full_name` — user's name
 - `primary_email`, `work_email` — Gmail accounts to check
@@ -17,7 +28,7 @@ Extract and use throughout:
 Do not proceed until you have these values.
 
 ## Debug Logging (MANDATORY)
-Read `../config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py meeting-prep <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (gog, mcporter, Granola, web search). On any error, log the full command and stderr before continuing.
+Read `${CLAUDE_PLUGIN_ROOT}/config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py meeting-prep <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (gog, mcporter, Granola, web search). On any error, log the full command and stderr before continuing.
 
 ## Scope
 - Timezone: {user.timezone}
@@ -197,7 +208,7 @@ Log each created cron: `python3 {user.workspace}/scripts/skill_log.py meeting-pr
 ## Post-meeting action items + drafts
 After generating all briefs, create a one-shot cron job for EACH meeting that fires 10 minutes after the meeting END time. The cron task should reference the action-items-todoist skill:
 
-Task: "Read and follow ~/executive-assistant-skills/action-items-todoist/SKILL.md. Process ONLY the meeting titled '<meeting title>' that ended around <end time>. Send results to WhatsApp ({user.whatsapp})."
+Task: "Read and follow ${CLAUDE_PLUGIN_ROOT}/action-items-todoist/SKILL.md. Process ONLY the meeting titled '<meeting title>' that ended around <end time>. Send results to WhatsApp ({user.whatsapp})."
 
 Use `openclaw cron add` with `--at` set to 10 min after meeting end time, `--delete-after-run`, `--session isolated`, `--timeout-seconds 1200`, `--no-deliver`, `--channel whatsapp`, and `--to {user.whatsapp}`. Name them `post-meeting-<short-name>`.
 
