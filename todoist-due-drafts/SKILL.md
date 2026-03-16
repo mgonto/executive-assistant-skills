@@ -1,11 +1,20 @@
 ---
 name: todoist-due-drafts
 description: Check Todoist for tasks due today (and overdue) that involve pinging, emailing, or following up with someone. Auto-draft the emails using meeting context and notify via WhatsApp. Use when running the daily due-drafts cron, or when user asks to process email tasks from Todoist.
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
+version: 1.0.0
+author: Martin Gontovnikas <gonto@hypergrowthpartners.com>
 ---
 # Todoist Due-Today Email Drafts
 
 ## Config — read before starting
-Read `../config/user.json` (resolves to `~/executive-assistant-skills/config/user.json`).
+Read `${CLAUDE_PLUGIN_ROOT}/config/user.json` (resolves to `${CLAUDE_PLUGIN_ROOT}/config/user.json`).
 Extract and use throughout:
 - `primary_email`, `work_email` — Gmail accounts
 - `whatsapp` — for notification delivery
@@ -13,7 +22,7 @@ Extract and use throughout:
 - `signature` — email signature
 
 ## Debug Logging (MANDATORY)
-Read `../config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py todoist-due-drafts <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (todoist-cli, gog, mcporter). On any error, log the full command and stderr before continuing.
+Read `${CLAUDE_PLUGIN_ROOT}/config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py todoist-due-drafts <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (todoist-cli, gog, mcporter). On any error, log the full command and stderr before continuing.
 
 ## Steps
 
@@ -36,7 +45,7 @@ Filter for tasks whose content matches outreach intent:
 Skip tasks that are clearly NOT outreach (e.g. "review doc", "read report", "build proposal").
 
 ### 3. For each outreach task, draft the email
-Read and follow `~/executive-assistant-skills/email-drafting/SKILL.md` for all drafting rules.
+Read and follow `${CLAUDE_PLUGIN_ROOT}/email-drafting/SKILL.md` for all drafting rules.
 
 For each task:
 1. **Identify the recipient**: Extract person/company name from task content + description

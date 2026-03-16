@@ -1,11 +1,20 @@
 ---
 name: email-drafting
 description: Draft email replies for Gonto's Gmail accounts (m@gon.to, gonto@hypergrowthpartners.com). Handles intro acceptances, scheduling intent, thanks/ack, and positive short replies. Use when user asks to draft or reply to an email, or when Gmail webhook triggers arrive for auto-draft classification. Draft-only mode — never sends automatically.
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
+version: 1.0.0
+author: Martin Gontovnikas <gonto@hypergrowthpartners.com>
 ---
 # Email Drafting Skill
 
 ## Config — read before starting
-Read `../config/user.json` (resolves to `~/executive-assistant-skills/config/user.json`).
+Read `${CLAUDE_PLUGIN_ROOT}/config/user.json` (resolves to `${CLAUDE_PLUGIN_ROOT}/config/user.json`).
 Extract and use throughout:
 - `primary_email`, `work_email` — Gmail accounts
 - `scheduling_cc` — scheduling assistant email (CC on all scheduling emails, mention in body)
@@ -16,7 +25,7 @@ Extract and use throughout:
 Do not proceed until you have these values.
 
 ## Debug Logging (MANDATORY)
-Read `../config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py email-drafting <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (gog gmail, mcporter, todoist-cli). On any error, log the full command and stderr before continuing.
+Read `${CLAUDE_PLUGIN_ROOT}/config/DEBUG_LOGGING.md` for the full convention. Use `python3 {user.workspace}/scripts/skill_log.py email-drafting <level> "<message>" ['<details>']` at every key step. Log BEFORE and AFTER every external call (gog gmail, mcporter, todoist-cli). On any error, log the full command and stderr before continuing.
 
 ## Overview
 Auto-draft and manually-requested email drafts for {user.primary_email} and {user.work_email}.
@@ -45,7 +54,7 @@ Auto-draft and manually-requested email drafts for {user.primary_email} and {use
 3. **Always sign** — end every draft with `{user.signature}`
 4. **Low confidence** — don't draft; ask user for guidance
 5. **No dash punctuation** — no em-dash/en-dash in bodies. Use commas/periods.
-6. **Humanize** — before finalizing any draft, review it against `~/executive-assistant-skills/humanizer/SKILL.md`. Remove AI-writing markers: inflated symbolism, promotional tone, em-dash overuse, "delve"/"leverage"/"foster" vocabulary, rule-of-three patterns. Email-specific rules (no dashes, signature, brevity) take precedence over humanizer suggestions if they conflict.
+6. **Humanize** — before finalizing any draft, review it against `${CLAUDE_PLUGIN_ROOT}/humanizer/SKILL.md`. Remove AI-writing markers: inflated symbolism, promotional tone, em-dash overuse, "delve"/"leverage"/"foster" vocabulary, rule-of-three patterns. Email-specific rules (no dashes, signature, brevity) take precedence over humanizer suggestions if they conflict.
 
 ### Intro Handling (required sequence)
 1. Thank introducer first
